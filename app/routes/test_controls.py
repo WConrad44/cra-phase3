@@ -32,9 +32,7 @@ def _utc_string(value):
     dependencies=[Depends(require_token)]
 )
 def get_clock():
-    fixed = clock.get_fixed()
     return {
-        "fixed": fixed is not None,
         "now": _utc_string(clock.now())
     }
 
@@ -46,7 +44,6 @@ def get_clock():
 def set_clock(body: ClockSetRequest):
     fixed = clock.set_fixed(body.now)
     return {
-        "fixed": True,
         "now": _utc_string(fixed)
     }
 
