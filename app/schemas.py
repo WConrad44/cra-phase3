@@ -24,67 +24,151 @@ class Severity(str, Enum):
 
 
 class Product(BaseModel):
-    manufacturer: str = Field(min_length=1, max_length=200)
-    name: str = Field(min_length=1, max_length=200)
-    affected_versions: list[str] = Field(default_factory=list, max_length=50)
+    model_config = ConfigDict(extra="forbid")
+
+    manufacturer: str = Field(
+        min_length=1,
+        max_length=200,
+    )
+    name: str = Field(
+        min_length=1,
+        max_length=200,
+    )
+    affected_versions: list[str] = Field(
+        default_factory=list,
+        max_length=50,
+    )
 
     @field_validator("affected_versions")
     @classmethod
-    def validate_versions(cls, value: list[str]) -> list[str]:
-        if any(not (1 <= len(v) <= 100) for v in value):
-            raise ValueError("each version must be 1-100 characters")
+    def validate_versions(
+        cls,
+        value: list[str],
+    ) -> list[str]:
+        if any(
+            not (1 <= len(v) <= 100)
+            for v in value
+        ):
+            raise ValueError(
+                "each version must be 1-100 characters"
+            )
+
         return value
 
 
 class Reporter(BaseModel):
-    name: str | None = Field(default=None, max_length=200)
-    contact: str | None = Field(default=None, max_length=200)
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = Field(
+        default=None,
+        max_length=200,
+    )
+    contact: str | None = Field(
+        default=None,
+        max_length=200,
+    )
 
 
 class Vulnerability(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     cve_id: str | None = None
-    description: str | None = Field(default=None, max_length=10_000)
+    description: str | None = Field(
+        default=None,
+        max_length=10_000,
+    )
 
     @field_validator("cve_id")
     @classmethod
-    def validate_cve(cls, value: str | None) -> str | None:
-        if value is not None and not re.fullmatch(r"CVE-\d{4}-\d{4,}", value):
-            raise ValueError("must match CVE-YYYY-NNNN")
+    def validate_cve(
+        cls,
+        value: str | None,
+    ) -> str | None:
+        if (
+            value is not None
+            and not re.fullmatch(
+                r"CVE-\d{4}-\d{4,}",
+                value,
+            )
+        ):
+            raise ValueError(
+                "must match CVE-YYYY-NNNN"
+            )
+
         return value
 
 
 class FixInfo(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     available_at: datetime | None = None
-    description: str | None = Field(default=None, max_length=10_000)
-    fixed_versions: list[str] = Field(default_factory=list, max_length=50)
+    description: str | None = Field(
+        default=None,
+        max_length=10_000,
+    )
+    fixed_versions: list[str] = Field(
+        default_factory=list,
+        max_length=50,
+    )
 
     @field_validator("available_at")
     @classmethod
-    def timestamp_must_have_offset(cls, value: datetime | None) -> datetime | None:
-        if value is not None and value.tzinfo is None:
-            raise ValueError("timestamp must include a UTC offset")
+    def timestamp_must_have_offset(
+        cls,
+        value: datetime | None,
+    ) -> datetime | None:
+        if (
+            value is not None
+            and value.tzinfo is None
+        ):
+            raise ValueError(
+                "timestamp must include a UTC offset"
+            )
+
         return value
 
 
 class TicketCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     source: Source
-    title: str = Field(min_length=1, max_length=200)
-    description: str = Field(min_length=1, max_length=10_000)
+    title: str = Field(
+        min_length=1,
+        max_length=200,
+    )
+    description: str = Field(
+        min_length=1,
+        max_length=10_000,
+    )
     product: Product
     reporter: Reporter | None = None
-    member_states: list[str] = Field(default_factory=list)
+    member_states: list[str] = Field(
+        default_factory=list
+    )
     vulnerability: Vulnerability | None = None
     severity: Severity | None = None
     fix: FixInfo | None = None
 
     @field_validator("member_states")
     @classmethod
-    def validate_member_states(cls, value: list[str]) -> list[str]:
+    def validate_member_states(
+        cls,
+        value: list[str],
+    ) -> list[str]:
         if len(value) != len(set(value)):
-            raise ValueError("member_states must be unique")
+            raise ValueError(
+                "member_states must be unique"
+            )
+
         for code in value:
-            if not re.fullmatch(r"[A-Z]{2}", code):
-                raise ValueError("member_states must contain two-letter uppercase country codes")
+            if not re.fullmatch(
+                r"[A-Z]{2}",
+                code,
+            ):
+                raise ValueError(
+                    "member_states must contain two-letter uppercase country codes"
+                )
+
         return value
 
 
@@ -95,32 +179,59 @@ class TriageDecision(str, Enum):
 
 
 class TriageRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     decision: TriageDecision
-    reason: str = Field(min_length=1, max_length=10_000)
+    reason: str = Field(
+        min_length=1,
+        max_length=10_000,
+    )
     aware_at: datetime | None = None
 
     @field_validator("aware_at")
     @classmethod
-    def timestamp_must_have_offset(cls, value: datetime | None) -> datetime | None:
-        if value is not None and value.tzinfo is None:
-            raise ValueError("timestamp must include a UTC offset")
+    def timestamp_must_have_offset(
+        cls,
+        value: datetime | None,
+    ) -> datetime | None:
+        if (
+            value is not None
+            and value.tzinfo is None
+        ):
+            raise ValueError(
+                "timestamp must include a UTC offset"
+            )
+
         return value
 
 
 class ClockSetRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     now: datetime
 
     @field_validator("now")
     @classmethod
-    def timestamp_must_have_offset(cls, value: datetime) -> datetime:
+    def timestamp_must_have_offset(
+        cls,
+        value: datetime,
+    ) -> datetime:
         if value.tzinfo is None:
-            raise ValueError("timestamp must include a UTC offset")
+            raise ValueError(
+                "timestamp must include a UTC offset"
+            )
+
         return value
 
 
 class Obligation(BaseModel):
     status: Literal[
-        "not_applicable", "awaiting_fix", "pending", "overdue", "submitted", "submitted_late"
+        "not_applicable",
+        "awaiting_fix",
+        "pending",
+        "overdue",
+        "submitted",
+        "submitted_late",
     ]
     due_at: datetime | None = None
     submitted_at: datetime | None = None
@@ -140,7 +251,11 @@ class TicketResponse(BaseModel):
     vulnerability: dict | None
     severity: str | None
     fix: dict | None
-    state: Literal["received", "reportable", "closed"]
+    state: Literal[
+        "received",
+        "reportable",
+        "closed",
+    ]
     resolution: str | None
     received_at: datetime
     aware_at: datetime | None
@@ -161,8 +276,13 @@ class ProblemDetails(BaseModel):
 
 
 class SystemTestSetupRequest(BaseModel):
-    session_id: str = Field(min_length=1, max_length=200)
-    setup: dict = Field(default_factory=dict)
+    session_id: str = Field(
+        min_length=1,
+        max_length=200,
+    )
+    setup: dict = Field(
+        default_factory=dict
+    )
 
 
 class SessionResponse(BaseModel):

@@ -18,32 +18,61 @@ app = FastAPI(
 @app.middleware("http")
 async def body_size_limit(request: Request, call_next):
     length = request.headers.get("content-length")
+
     if length is not None:
         try:
             if int(length) > MAX_BODY_BYTES:
                 return JSONResponse(
                     status_code=413,
-                    content={"title": "Request body too large", "status": 413},
+                    content={
+                        "title": "Request body too large",
+                        "status": 413,
+                    },
+                    media_type="application/problem+json",
                 )
         except ValueError:
             pass
+
     return await call_next(request)
 
 
 @app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request: Request, exc: RequestValidationError):
+async def validation_exception_handler(
+    request: Request,
+    exc: RequestValidationError,
+):
     errors = []
+
     for error in exc.errors():
-        loc = [str(x) for x in error.get("loc", []) if x != "body"]
-        errors.append({"field": ".".join(loc) or "body", "message": error.get("msg", "invalid")})
+        loc = [
+            str(x)
+            for x in error.get("loc", [])
+            if x != "body"
+        ]
+
+        errors.append(
+            {
+                "field": ".".join(loc) or "body",
+                "message": error.get("msg", "invalid"),
+            }
+        )
+
     return JSONResponse(
         status_code=400,
-        content={"title": "Invalid request", "status": 400, "errors": errors},
+        content={
+            "title": "Invalid request",
+            "status": 400,
+            "errors": errors,
+        },
+        media_type="application/problem+json",
     )
 
 
 @app.exception_handler(HTTPException)
-async def http_exception_handler(request: Request, exc: HTTPException):
+async def http_exception_handler(
+    request: Request,
+    exc: HTTPException,
+):
     titles = {
         400: "Invalid request",
         401: "Unauthorized",
@@ -53,9 +82,18 @@ async def http_exception_handler(request: Request, exc: HTTPException):
         413: "Request body too large",
         422: "Rule violation",
     }
+
     return JSONResponse(
         status_code=exc.status_code,
-        content={"title": titles.get(exc.status_code, "Request failed"), "status": exc.status_code, "detail": str(exc.detail)},
+        content={
+            "title": titles.get(
+                exc.status_code,
+                "Request failed",
+            ),
+            "status": exc.status_code,
+            "detail": str(exc.detail),
+        },
+        media_type="application/problem+json",
     )
 
 
