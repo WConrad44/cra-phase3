@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: cra-vulnerability-service
+    runtime: docker
+    healthCheckPath: /health
+    envVars:
+      - key: API_TOKEN
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
