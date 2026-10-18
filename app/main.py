@@ -83,16 +83,60 @@ async def http_exception_handler(
         422: "Rule violation",
     }
 
+    content = {
+        "title": titles.get(
+            exc.status_code,
+            "Request failed",
+        ),
+        "status": exc.status_code,
+    }
+
+    if isinstance(exc.detail, dict):
+        field = exc.detail.get("field", "request")
+        message = exc.detail.get("message", "invalid")
+
+        content["detail"] = message
+
+        if exc.status_code in {400, 422}:
+            content["errors"] = [
+                {
+                    "field": field,
+                    "message": message,
+                }
+            ]
+
+    else:
+        content["detail"] = str(exc.detail)
+
+        if exc.status_code == 400:
+            detail_lower = str(exc.detail).lower()
+
+            if "actor" in detail_lower:
+                content["errors"] = [
+                    {
+                        "field": "X-Actor",
+                        "message": str(exc.detail),
+                    }
+                ]
+            else:
+                content["errors"] = [
+                    {
+                        "field": "request",
+                        "message": str(exc.detail),
+                    }
+                ]
+
+        elif exc.status_code == 422:
+            content["errors"] = [
+                {
+                    "field": "request",
+                    "message": str(exc.detail),
+                }
+            ]
+
     return JSONResponse(
         status_code=exc.status_code,
-        content={
-            "title": titles.get(
-                exc.status_code,
-                "Request failed",
-            ),
-            "status": exc.status_code,
-            "detail": str(exc.detail),
-        },
+        content=content,
         media_type="application/problem+json",
     )
 
