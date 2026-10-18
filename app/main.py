@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 
 from .config import MAX_BODY_BYTES
 from .database import Base, engine
-from .routes import health, test_controls, tickets
+from .routes import cross_team, health, test_controls, tickets
 
 Base.metadata.create_all(bind=engine)
 
@@ -60,5 +60,6 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 
 
 app.include_router(health.router)
+app.include_router(cross_team.router)
 app.include_router(tickets.router)
 app.include_router(test_controls.router)

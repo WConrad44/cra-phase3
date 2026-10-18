@@ -155,3 +155,38 @@ def test_openapi_exposes_phase3_contract_paths(client):
     paths = r.json()["paths"]
     for path in ["/health", "/tickets", "/tickets/{ticket_id}", "/tickets/{ticket_id}/triage", "/test/reset", "/test/clock"]:
         assert path in paths
+
+
+def test_course_system_setup_and_report(client):
+    setup = client.post(
+        "/test/setup",
+        headers=HEADERS,
+        json={"session_id": "run-course-interface", "setup": {}},
+    )
+    assert setup.status_code == 201, setup.text
+    assert setup.json() == {"session_id": "run-course-interface"}
+
+    duplicate = client.post(
+        "/test/setup",
+        headers=HEADERS,
+        json={"session_id": "run-course-interface", "setup": {}},
+    )
+    assert duplicate.status_code == 409
+
+    report = client.get(
+        "/test/report",
+        headers=AUTH_ONLY,
+        params={"session_id": "run-course-interface"},
+    )
+    assert report.status_code == 200, report.text
+    body = report.json()
+    assert body["session_id"] == "run-course-interface"
+    assert body["coverage"]["code"]["covered"] is None
+    assert body["coverage"]["code"]["total"] is None
+    assert body["coverage"]["code"]["basis"]
+
+
+def test_openapi_includes_course_cross_team_paths(client):
+    paths = client.get("/openapi.json").json()["paths"]
+    assert "/test/setup" in paths
+    assert "/test/report" in paths

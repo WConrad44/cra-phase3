@@ -1,115 +1,163 @@
-# CRA Vulnerability Ticketing Service — Phase 3 starter
+# Team 21 CRA Vulnerability Ticketing Service — Phase 3
 
-Implements the Phase 3 increment from the pod specification:
+This repository now contains **two FastAPI applications** required for Phase 3:
+
+1. **System service** — `app.main:app`
+2. **Tester service** — `tester.main:app`
+
+The shared Pod K specification is the Phase 2 `spec.md` maintained by Teams 17 and 21. The shared `openapi.yaml` is authoritative for exact project-interface details and should be checked before final cross-team grading.
+
+## System service
+
+Implemented Phase 3 project behavior:
 
 - REQ-01 ticket intake
 - REQ-02 actively-exploited triage
 - REQ-03 non-reportable/invalid triage
 - REQ-04 24h / 72h / final-report deadline calculation
-- REQ-12 common error handling (starter implementation)
+- REQ-12 common error handling (Phase 3 subset)
 - REQ-13 RFC 3339 input + UTC output
 - REQ-14 bearer-token authentication + actor header for mutations
 - REQ-16 reset + controllable test clock
 
-It also includes `GET /tickets/{id}` because it is useful for automated verification.
+Course-wide cross-team endpoints added:
 
-## 1. Local setup
+- `POST /test/setup`
+- `GET /test/report?session_id=...`
 
-Python 3.12 recommended.
+The existing Pod K controls remain:
+
+- `POST /test/reset`
+- `GET /test/clock`
+- `PUT /test/clock`
+- `DELETE /test/clock`
+
+### Run locally
 
 ```bash
-python -m venv .venv
-# Windows PowerShell
-.venv\Scripts\Activate.ps1
-# macOS/Linux
+python3 -m venv .venv
 source .venv/bin/activate
-
 pip install -r requirements-dev.txt
-```
-
-Set environment variables:
-
-```bash
-# PowerShell
-$env:API_TOKEN="dev-token"
-$env:DATABASE_URL="sqlite:///./cra.db"
-
-# macOS/Linux
-export API_TOKEN="dev-token"
-export DATABASE_URL="sqlite:///./cra.db"
-```
-
-Run:
-
-```bash
+export API_TOKEN=dev-token
+export DATABASE_URL=sqlite:///./cra.db
 uvicorn app.main:app --reload
 ```
 
-Then open:
+System docs: `http://127.0.0.1:8000/docs`
 
-- API docs: http://127.0.0.1:8000/docs
-- Health: http://127.0.0.1:8000/health
+## Tester service
 
-## 2. Run tests
+The Team 21 tester implements the course interface:
 
-```bash
-pytest -q
-ruff check app tests
-```
+- `POST /test/setup`
+- `POST /test/run`
+- `GET /test/report?session_id=...`
 
-## 3. Quick manual test
+Its Phase 3 suite checks AC-01 through AC-05, AC-14, AC-15, and AC-17 against the selected Pod K target.
 
-Set fixed time:
+### Run tester locally
 
-```bash
-curl -X PUT http://127.0.0.1:8000/test/clock \
-  -H "Authorization: Bearer dev-token" \
-  -H "X-Actor: student" \
-  -H "Content-Type: application/json" \
-  -d '{"now":"2026-10-07T15:00:00Z"}'
-```
+The tester must know the target system's bearer token. Keep tokens in environment variables; never place them in the class registry URL.
 
-Create ticket:
+For one target:
 
 ```bash
-curl -X POST http://127.0.0.1:8000/tickets \
-  -H "Authorization: Bearer dev-token" \
-  -H "X-Actor: student" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "source":"external_researcher",
-    "title":"Auth bypass",
-    "description":"Researcher reports login bypass.",
-    "product":{"manufacturer":"Acme","name":"Acme Router OS","affected_versions":["4.1.0"]}
-  }'
+export TARGET_API_TOKEN='target-private-token'
+export TARGET_ACTOR='team21-tester'
+uvicorn tester.main:app --reload --port 8001
 ```
 
-Triage the returned ticket ID:
+For multiple known targets, use a JSON mapping by hostname or full base URL:
 
 ```bash
-curl -X POST http://127.0.0.1:8000/tickets/TICKET_ID/triage \
-  -H "Authorization: Bearer dev-token" \
-  -H "X-Actor: security-engineer" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "decision":"actively_exploited",
-    "aware_at":"2026-10-07T14:30:00Z",
-    "reason":"Customer logs show exploitation."
-  }'
+export TARGET_TOKENS_JSON='{"team17.example.run.app":"TEAM17_TOKEN","cra-phase3.onrender.com":"TEAM21_TOKEN"}'
+uvicorn tester.main:app --reload --port 8001
 ```
 
-Expected due times:
+Tester docs: `http://127.0.0.1:8001/docs`
 
-- early warning: 2026-10-08T14:30:00Z
-- notification: 2026-10-10T14:30:00Z
-- final report: awaiting fix unless `fix.available_at` is already present
+### Tester workflow
 
-## 4. PostgreSQL later / deployment
+1. `POST /test/setup` with the selected system base URL:
 
-The app already uses SQLAlchemy. For local development the default can be SQLite. For deployment, set `DATABASE_URL` to a PostgreSQL connection string and install/use the same requirements.
+```json
+{"target_url":"https://target-system.example"}
+```
 
-The included `Dockerfile` and `render.yaml` are starter deployment files. You still need to create/provision a database and set `DATABASE_URL` in the host.
+2. Copy the returned `session_id` and call:
 
-## Important before cross-team testing
+```json
+POST /test/run
+{"session_id":"run-..."}
+```
 
-Compare these endpoint schemas with the pod's **actual frozen OpenAPI file** if one exists separately from the Phase 2 report. Exact field names/status codes/error bodies must match the shared contract, even if FastAPI's defaults differ.
+3. The run response is the complete suite report. It can later be retrieved with:
+
+```text
+GET /test/report?session_id=run-...
+```
+
+## Run local automated tests
+
+```bash
+python3 -m pytest -q
+ruff check app tester tests
+```
+
+## Render deployment
+
+### Existing Team 21 system
+
+Keep the current system service start command:
+
+```bash
+uvicorn app.main:app --host 0.0.0.0 --port $PORT
+```
+
+Environment variables:
+
+```text
+API_TOKEN=<private Team 21 token>
+DATABASE_URL=sqlite:///./cra.db   # Phase 3 only; PostgreSQL is preferred for later persistence work
+```
+
+### Create the second Team 21 tester service
+
+Create another Render Web Service from the **same GitHub repository**.
+
+Build command:
+
+```bash
+pip install -r requirements.txt
+```
+
+Start command:
+
+```bash
+uvicorn tester.main:app --host 0.0.0.0 --port $PORT
+```
+
+Set either:
+
+```text
+TARGET_API_TOKEN=<private token for the system being tested>
+TARGET_ACTOR=team21-tester
+```
+
+or, preferably for Team 17 + Team 21 targets:
+
+```text
+TARGET_TOKENS_JSON={"TEAM17_HOST":"TEAM17_PRIVATE_TOKEN","cra-phase3.onrender.com":"TEAM21_PRIVATE_TOKEN"}
+TARGET_ACTOR=team21-tester
+```
+
+Do not put these tokens in GitHub or the class registry.
+
+## Registry fields
+
+Team 21 should register:
+
+- **System base URL:** `https://cra-phase3.onrender.com`
+- **Tester base URL:** the second Render service URL created for `tester.main:app`
+- **Intra-pod specification URL:** the shared Pod K `spec.md` GitHub URL
+- **Access/run notes:** state that protected system calls use Bearer auth and credentials are provided privately; include agreed setup/run limits.

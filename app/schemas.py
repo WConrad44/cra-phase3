@@ -158,3 +158,27 @@ class ProblemDetails(BaseModel):
     status: int
     detail: str | None = None
     errors: list[ErrorItem] | None = None
+
+
+class SystemTestSetupRequest(BaseModel):
+    session_id: str = Field(min_length=1, max_length=200)
+    setup: dict = Field(default_factory=dict)
+
+
+class SessionResponse(BaseModel):
+    session_id: str
+
+
+class CoverageMeasure(BaseModel):
+    covered: int | None
+    total: int | None
+    basis: str = Field(min_length=1)
+
+
+class SystemCoverageReport(BaseModel):
+    code: CoverageMeasure
+
+
+class SystemTestReportResponse(BaseModel):
+    session_id: str
+    coverage: SystemCoverageReport
