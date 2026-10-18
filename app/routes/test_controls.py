@@ -11,7 +11,11 @@ from ..schemas import ClockSetRequest
 router = APIRouter(prefix="/test", tags=["test-controls"])
 
 
-@router.post("/reset", status_code=204, dependencies=[Depends(require_token), Depends(require_actor)])
+@router.post(
+    "/reset",
+    status_code=204,
+    dependencies=[Depends(require_token)]
+)
 def reset(db: Session = Depends(get_db)):
     db.execute(delete(Ticket))
     db.commit()
